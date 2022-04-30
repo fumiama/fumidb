@@ -8,7 +8,8 @@ if(${isBigEndian})
     add_definitions(-DWORDS_BIGENDIAN)
 endif()
 
-option(BUILD_TEST "Whether to build tests" OFF)
+include(option.txt)
+
 if(${BUILD_TEST})
     message(STATUS "Building tests...")
     enable_testing()

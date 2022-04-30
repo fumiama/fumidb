@@ -13,5 +13,8 @@ Most part of this README and the docs in `api` folder is written in Chinese. If 
 - [ ] 按索引[删除表项](/api/table.md#表项的删除)
 - [ ] 对非主键（无[unique约束](/api/types.md#类型修饰符)）进行[索引](/api/index.md)
 
+## 关于并发
+不支持并发，如需要并发，请自行加锁以免数据损坏。
+
 ## Thanks
 - [asciiflow](https://asciiflow.com/)
