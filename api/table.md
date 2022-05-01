@@ -19,8 +19,6 @@
 ├───────────────────────────────────────────────────────────────────────────────────────┤
 │    index pointer of column No.N ( if it's zero, there is no index for this column )   │
 ├───────────────────────────────────────────────────────────────────────────────────────┤
-│    index pointer of first deleted block ( if it's zero, there is no deleted block )   │
-├───────────────────────────────────────────────────────────────────────────────────────┤
 │                  index pointer of first foreign key  ( if available )                 │
 ├───────────────────────────────────────────────────────────────────────────────────────┤
 │                  index pointer of second foreign key ( if available )                 │

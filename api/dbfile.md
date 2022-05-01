@@ -13,15 +13,15 @@
 ├───────────────────┴───────────────────┤
 │      possible other header data       │
 ├───────────────────────────────────────┤
-│    ......      ......      ......     │
+│  possible other data (such as index)  │
 ├───────────────────────────────────────┤
-│ some possible padding to fit 4096Byte │
+│    some possible padding to fit 4k    │
 ├───────────────────┬───────────────────┤
 │ ptr of next table │ first table head  │
 ├───────────────────┴───────────────────┤
 │    ......      ......      ......     │
 ├───────────────────────────────────────┤
-│ some possible padding to fit 4096Byte │
+│    some possible padding to fit 4k    │
 ├───────────────────────────────────────┤
 │            data blocks ...            │
 └───────────────────────────────────────┘
