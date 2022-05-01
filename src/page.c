@@ -10,7 +10,7 @@
 #include "../include/binary.h"
 #include "../include/page.h"
 
-uint8_t nullpage[PAGESZ];
+static const uint8_t nullpage[PAGESZ];
 
 void* alloc_page(int fd) {
     uint64_t ptr = 8, prev_ptr = 0, prev_prev_ptr = 0;
@@ -60,6 +60,20 @@ void* alloc_page(int fd) {
     if(page == NULL) return NULL;
     putle64(page, ptr);
     return page+8;
+}
+
+void* get_page(int fd, uint64_t ptr) {
+    if(ptr%PAGESZ) return NULL;
+    if(lseek(fd, ptr, SEEK_SET) < 0) return NULL;
+    void* page = malloc(PAGESZ+8);
+    if(page == NULL) return NULL;
+    putle64(page, ptr);
+    page += 8;
+    if(read(fd, page, PAGESZ) != PAGESZ) {
+        free(page-8);
+        return NULL;
+    }
+    return page;
 }
 
 int sync_page(int fd, void* page) {
@@ -179,6 +193,20 @@ void* alloc_block(int fd, uint16_t size) {
     putle64(blk, ptr);
     putle16(blk+8, size);
     return blk+10;
+}
+
+void* get_block(int fd, uint16_t size, uint64_t ptr) {
+    if(lseek(fd, ptr, SEEK_SET) < 0) return NULL;
+    void* blk = malloc(size+10);
+    if(blk == NULL) return NULL;
+    putle64(blk, ptr);
+    putle16(blk+8, size);
+    blk += 10;
+    if(read(fd, blk, size) != size) {
+        free(blk);
+        return NULL;
+    }
+    return blk;
 }
 
 int sync_block(int fd, void* blk) {

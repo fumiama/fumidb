@@ -16,6 +16,12 @@
 //    page 指针
 void* alloc_page(int fd);
 
+// 获取 ptr 处的页
+// 返回：
+//    NULL 错误，参见 errno
+//    page 指针
+void* get_page(int fd, uint64_t ptr);
+
 // 刷新一页
 // 返回：
 //    EOF lseek 错误，参见 errno
@@ -43,6 +49,12 @@ int free_page(int fd, void* page);
 //    NULL 错误，参见 errno
 //    blk  指针
 void* alloc_block(int fd, uint16_t size);
+
+// 获取 ptr 处的块
+// 返回：
+//    NULL 错误，参见 errno
+//    blk  指针
+void* get_block(int fd, uint16_t size, uint64_t ptr);
 
 // 刷新 block 到文件
 // 返回：
