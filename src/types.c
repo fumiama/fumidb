@@ -2,9 +2,9 @@
 #include "../include/types/int8.h"
 
 // ptr = init(fd)
-typedef void* (*_type_init_t)(int);
+typedef void* (*_type_init_t)(int, void*);
 // ptr = load(fd, ptr)
-typedef void* (*_type_load_t)(int, uint64_t);
+typedef void* (*_type_load_t)(int, uint64_t, void*);
 // ret = insert_item(fd, index, k, ptr)
 typedef int (*_insert_item_t)(int, void*, key_t, uint64_t);
 // ptr = find_by_key(fd, index, k)
@@ -13,13 +13,13 @@ typedef uint64_t (*_find_by_key_t)(int, void*, key_t);
 typedef int (*_remove_by_key_t)(int, void*, key_t);
 
 // Function not implemented
-static void* create_not_impl_index(int fd) {
+static void* create_not_impl_index(int fd, void* buf) {
     errno = ENOSYS;
     return 0;
 }
 
 // Function not implemented
-static void* load_not_impl_index(int fd, uint64_t ptr) {
+static void* load_not_impl_index(int fd, uint64_t ptr, void* buf) {
     errno = ENOSYS;
     return 0;
 }
@@ -92,12 +92,12 @@ static _remove_by_key_t _remove_item_by_key[] = {
     remove_item_by_not_impl_key
 };
 
-void* create_index(int fd, type_t t) {
-    return _types_init[t&7](fd);
+void* create_index(int fd, type_t t, void* buf) {
+    return _types_init[t&7](fd, buf);
 }
 
-void* load_index(int fd, type_t t, uint64_t ptr) {
-    return _types_load[t&7](fd, ptr);
+void* load_index(int fd, type_t t, uint64_t ptr, void* buf) {
+    return _types_load[t&7](fd, ptr, buf);
 }
 
 int insert_item(int fd, type_t t, void* index, key_t k, uint64_t ptr) {

@@ -13,12 +13,7 @@ int init_file_header_page(int fd) {
     lseek(fd, 0, SEEK_SET);
     if(write(fd, header, PAGESZ) != PAGESZ) return 1;
     // 将头的 HEADERSZ 字节之后的空间纳入空闲块
-    if(lseek(fd, 8, SEEK_SET) < 0) return EOF;
-    putle64(buf, HEADERSZ);
-    if(write(fd, buf, 8) != 8) return 1;
-    if(lseek(fd, HEADERSZ+8, SEEK_SET) < 0) return EOF;
-    putle16(buf, PAGESZ - HEADERSZ);
-    return write(fd, buf, 2) != 2;
+    return add_block(fd, PAGESZ-HEADERSZ, HEADERSZ);
 }
 
 uint16_t get_db_version(int fd) {

@@ -1,3 +1,5 @@
+#include <stdint.h>
+#include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include "../include/binary.h"
@@ -5,6 +7,8 @@
 #include "../include/page.h"
 #include "../include/types.h"
 #include "../include/types/int8.h"
+
+uint8_t int8buf[INT8_INDEX_SZ+10];
 
 int main() {
     /*                             test int8                             */
@@ -14,7 +18,7 @@ int main() {
         return 1;
     }
     if(init_file_header_page(fd) < 0) return 2;
-    void* index = create_index(fd, TYPE_INT8);
+    void* index = create_index(fd, TYPE_INT8, int8buf);
     if(!index) {
         perror("create_index");
         return 3;
@@ -38,11 +42,11 @@ int main() {
     if(find_item_by_key(fd, TYPE_INT8, index, 67) != 56787145) return 9;
     if(find_item_by_key(fd, TYPE_INT8, index, 123) != 123567854424) return 10;
     if(find_item_by_key(fd, TYPE_INT8, index, 255) != 0) return 11;
-    unmount_block(fd, index);
     index = NULL;
     close(fd);
     fd = open("types_test_tmp.bin", O_RDWR, 0644);
-    index = load_index(fd, TYPE_INT8, HEADERSZ);
+    memset(int8buf, 0, INT8_INDEX_SZ+10);
+    index = load_index(fd, TYPE_INT8, HEADERSZ, int8buf);
     if(find_item_by_key(fd, TYPE_INT8, index, 1) != 3456432) return 6;
     if(find_item_by_key(fd, TYPE_INT8, index, 3) != 7654323456) return 7;
     if(find_item_by_key(fd, TYPE_INT8, index, 45) != 345743415) return 8;

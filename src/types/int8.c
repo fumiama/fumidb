@@ -4,16 +4,16 @@
 #include "../../include/page.h"
 #include "../../include/types/int8.h"
 
-void* create_int8_index(int fd) {
-    uint64_t* blk = alloc_block(fd, INT8_INDEX_SZ);
+void* create_int8_index(int fd, void* buf) {
+    uint64_t* blk = alloc_block(fd, INT8_INDEX_SZ, buf);
     if(blk == NULL) return 0;
     memset(blk, 0, INT8_INDEX_SZ);
     sync_block(fd, blk);
     return blk;
 }
 
-void* load_int8_index(int fd, uint64_t ptr) {
-    return get_block(fd, INT8_INDEX_SZ, ptr);
+void* load_int8_index(int fd, uint64_t ptr, void* buf) {
+    return get_block(fd, INT8_INDEX_SZ, ptr, buf);
 }
 
 int insert_int8_item(int fd, void* index, key_t k, uint64_t ptr) {

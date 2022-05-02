@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -6,7 +7,8 @@
 #include "../include/page.h"
 
 void* pages[16];
-uint8_t nullpage[PAGESZ];
+uint8_t zeropage[PAGESZ];
+uint8_t nullpages[16][PAGESZ+8];
 
 static uint64_t get_second_unused_block(int fd) {
     uint64_t ptr = get_first_unused_block(fd);
@@ -24,7 +26,7 @@ int main() {
     }
     if(init_file_header_page(fd) < 0) return 2;
     for(int i = 0; i < 16; i++) {
-        void* page = alloc_page(fd);
+        void* page = alloc_page(fd, nullpages[i]);
         if(page == NULL) {
             perror("alloc_page");
             return 3;
@@ -47,24 +49,24 @@ int main() {
     free_page(fd, pages[9]);
     if(get_second_unused_block(fd) != 2*PAGESZ) return 8;
     puts("free 9!");
-    pages[1] = alloc_page(fd);
+    pages[1] = alloc_page(fd, nullpages[1]);
     if(le64(pages[1]-8) != (uint64_t)(2*PAGESZ)) {
         printf("1: %016llx != %016llx\n", le64(pages[1]-8), (uint64_t)(2*PAGESZ));
         return 9;
     }
-    pages[9] = alloc_page(fd);
+    pages[9] = alloc_page(fd, nullpages[9]);
     if(le64(pages[9]-8) != (uint64_t)(10*PAGESZ)) {
         printf("9: %016llx != %016llx\n", le64(pages[9]-8), (uint64_t)(11*PAGESZ));
         return 10;
     }
-    pages[10] = alloc_page(fd);
+    pages[10] = alloc_page(fd, nullpages[10]);
     if(le64(pages[10]-8) != (uint64_t)(11*PAGESZ)) {
         printf("10: %016llx != %016llx\n", le64(pages[10]-8), (uint64_t)(11*PAGESZ));
         return 11;
     }
-    pages[12] = alloc_page(fd);
+    pages[12] = alloc_page(fd, nullpages[12]);
     if(le64(pages[12]-8) != (uint64_t)(13*PAGESZ)) return 12;
-    pages[15] = alloc_page(fd);
+    pages[15] = alloc_page(fd, nullpages[15]);
     if(le64(pages[15]-8) != (uint64_t)(16*PAGESZ)) return 13;
     for(int i = 0; i < 16; i++) {
         if(free_page(fd, pages[i])) {
@@ -79,10 +81,10 @@ int main() {
         perror("open");
         return 15;
     }
-    uint8_t* blk1 = alloc_block(fd, 40);
-    uint8_t* blk2 = alloc_block(fd, 22);
-    uint8_t* blk3 = alloc_block(fd, 33);
-    uint8_t* blk4 = alloc_block(fd, 4095);
+    uint8_t* blk1 = alloc_block(fd, 40, nullpages[0]);
+    uint8_t* blk2 = alloc_block(fd, 22, nullpages[1]);
+    uint8_t* blk3 = alloc_block(fd, 33, nullpages[2]);
+    uint8_t* blk4 = alloc_block(fd, 4095, nullpages[3]);
     memcpy(blk1, "hello world!", 13);
     sync_block(fd, blk1);
     lseek(fd, HEADERSZ, SEEK_SET);
@@ -130,7 +132,7 @@ int main() {
         perror("free_block(fd, blk4)");
         return 23;
     }
-    blk1 = alloc_block(fd, 40+22+33);
+    blk1 = alloc_block(fd, 40+22+33, nullpages[4]);
     memcpy(blk1+44, "hello world!", 13);
     sync_block(fd, blk1);
     lseek(fd, HEADERSZ+44, SEEK_SET);
@@ -147,10 +149,10 @@ int main() {
         return 25;
     }
     if(init_file_header_page(fd) < 0) return 26;
-    blk1 = alloc_block(fd, 40);
-    blk2 = alloc_block(fd, 22);
-    blk3 = alloc_block(fd, 33);
-    blk4 = alloc_block(fd, 4095);
+    blk1 = alloc_block(fd, 40, nullpages[5]);
+    blk2 = alloc_block(fd, 22, nullpages[6]);
+    blk3 = alloc_block(fd, 33, nullpages[7]);
+    blk4 = alloc_block(fd, 4095, nullpages[8]);
     memcpy(blk1, "hello world!", 13);
     sync_block(fd, blk1);
     lseek(fd, HEADERSZ, SEEK_SET);
@@ -193,7 +195,7 @@ int main() {
         perror("free_block(fd, blk4)");
         return 23;
     }
-    blk1 = alloc_block(fd, 40+22+33);
+    blk1 = alloc_block(fd, 40+22+33, nullpages[9]);
     memcpy(blk1+44, "hello world!", 13);
     sync_block(fd, blk1);
     lseek(fd, HEADERSZ+44, SEEK_SET);

@@ -1,13 +1,16 @@
 #ifndef _TYPE_INT8_H_
 #define _TYPE_INT8_H_
 
+#include <stdint.h>
 #include "../types.h"
 
 #define INT8_INDEX_SZ (256*8)
 
-void* create_int8_index(int fd);
+// len(buf) >= INT8_INDEX_SZ+10
+void* create_int8_index(int fd, void* buf);
 
-void* load_int8_index(int fd, uint64_t ptr);
+// len(buf) >= INT8_INDEX_SZ+10
+void* load_int8_index(int fd, uint64_t ptr, void* buf);
 
 int insert_int8_item(int fd, void* index, key_t k, uint64_t ptr);
 

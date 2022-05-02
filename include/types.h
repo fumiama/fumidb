@@ -23,11 +23,11 @@ typedef uint64_t key_t;
 
 // 为类型 type 创建索引
 // 返回：索引头节点的指针 index
-void* create_index(int fd, type_t t);
+void* create_index(int fd, type_t t, void* buf);
 
 // 加载类型 type 的索引
 // 返回：索引头节点的指针 index
-void* load_index(int fd, type_t t, uint64_t ptr);
+void* load_index(int fd, type_t t, uint64_t ptr, void* buf);
 
 // 插入一条索引
 int insert_item(int fd, type_t t, void* index, key_t k, uint64_t ptr);
