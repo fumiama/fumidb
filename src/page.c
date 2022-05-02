@@ -14,8 +14,13 @@ static const uint8_t nullpage[PAGESZ];
 void* alloc_page(int fd, void* page) {
     uint64_t ptr = 8, prev_ptr = 0, prev_prev_ptr = 0;
     uint8_t buf[8];
+    if(page == NULL) return NULL;
     // 对于 page，只关心位于第一页 8~15 字节的 ptr of unused blk
     while(ptr) {
+        if(unlikely(ptr == prev_ptr)) { // 文件损坏
+            errno = ESPIPE;
+            return NULL;
+        }
         if(!(ptr%PAGESZ)) { // 找到符合要求的页
             if(lseek(fd, ptr, SEEK_SET) < 0) return NULL;
             if(read(fd, buf, 8) != 8) return NULL;
@@ -46,7 +51,7 @@ void* alloc_page(int fd, void* page) {
         readle64(fd, ptr);
     }
     ptr = lseek(fd, 0, SEEK_END);
-    if(ptr < 0) return NULL;
+    if((int)ptr < 0) return NULL;
     if(ptr%PAGESZ) { // 文件没有页对齐
         errno = ESPIPE;
         return NULL;
@@ -57,6 +62,7 @@ void* alloc_page(int fd, void* page) {
 }
 
 void* get_page(int fd, uint64_t ptr, void* page) {
+    if(page == NULL) return NULL;
     if(ptr%PAGESZ) return NULL;
     if(lseek(fd, ptr, SEEK_SET) < 0) return NULL;
     putle64(page, ptr);
@@ -66,16 +72,21 @@ void* get_page(int fd, uint64_t ptr, void* page) {
 }
 
 int sync_page(int fd, void* page) {
+    if(page == NULL) return EOF;
     uint64_t ptr = le64(page-8);
     if(lseek(fd, ptr, SEEK_SET) < 0) return EOF;
     return write(fd, page, PAGESZ) != PAGESZ;
 }
 
 int free_page(int fd, void* page) {
+    if(page == NULL) return EOF;
     uint64_t ptr = 8, prev_ptr = 0, prev_prev_ptr = 0, page_ptr = le64(page-8);
     uint8_t buf[8];
     while(ptr && ptr < page_ptr) {
-        if(prev_ptr == ptr) return EOF;
+        if(unlikely(ptr == prev_ptr)) { // 文件损坏
+            errno = ESPIPE;
+            return EOF;
+        }
         if(prev_prev_ptr && ptr < prev_ptr) { // 不符合顺序，进行一次调整
             lseek(fd, prev_prev_ptr, SEEK_SET);
             putle64(buf, ptr);
@@ -110,11 +121,16 @@ void* alloc_block(int fd, uint16_t size, void* blk) {
     uint8_t buf[8];
     uint16_t blksz;
 
+    if(blk == NULL) return NULL;
     if(size > PAGESZ) return NULL;
     // 对于 page，只关心位于第一页 8~15 字节的 ptr of unused blk
     while(ptr) {
-        if(lseek(fd, ptr, SEEK_SET) < 0) return NULL;
-        if(read(fd, buf, 8) != 8) return NULL;
+        if(unlikely(lseek(fd, ptr, SEEK_SET) < 0)) return NULL;
+        if(unlikely(read(fd, buf, 8) != 8)) return NULL;
+        if(unlikely(ptr == prev_ptr)) { // 文件损坏
+            errno = ESPIPE;
+            return NULL;
+        }
         readle16(fd, blksz);
         if(blksz >= size) { // 找到符合要求的块
             if(blksz - size > 10) { // 分裂块
@@ -153,7 +169,7 @@ void* alloc_block(int fd, uint16_t size, void* blk) {
         readle64(fd, ptr);
     }
     ptr = lseek(fd, 0, SEEK_END);
-    if(ptr < 0) return NULL;
+    if((int)ptr < 0) return NULL;
     if(ptr%PAGESZ) { // 文件没有页对齐
         errno = ESPIPE;
         return NULL;
@@ -173,6 +189,7 @@ void* alloc_block(int fd, uint16_t size, void* blk) {
 }
 
 void* get_block(int fd, uint16_t size, uint64_t ptr, void* blk) {
+    if(blk == NULL) return NULL;
     if(lseek(fd, ptr, SEEK_SET) < 0) return NULL;
     putle64(blk, ptr);
     putle16(blk+8, size);
@@ -182,6 +199,7 @@ void* get_block(int fd, uint16_t size, uint64_t ptr, void* blk) {
 }
 
 int sync_block(int fd, void* blk) {
+    if(blk == NULL) return EOF;
     uint64_t off = le64(blk-10);
     uint16_t size = le16(blk-2);
     if(size > PAGESZ) {
@@ -193,11 +211,15 @@ int sync_block(int fd, void* blk) {
 }
 
 int free_block(int fd, void* blk) {
+    if(blk == NULL) return EOF;
     uint64_t ptr = 8, prev_ptr = 0, prev_prev_ptr = 0, off = le64(blk-10);
     uint8_t buf[8];
     uint16_t size = le16(blk-2), sz;
     while(ptr && ptr < off) {
-        if(prev_ptr == ptr) return EOF;
+        if(unlikely(ptr == prev_ptr)) { // 文件损坏
+            errno = ESPIPE;
+            return EOF;
+        }
         if(prev_prev_ptr && ptr < prev_ptr) { // 不符合顺序，进行一次调整
             lseek(fd, prev_prev_ptr, SEEK_SET);
             putle64(buf, ptr);
@@ -247,7 +269,10 @@ int add_block(int fd, uint16_t size, uint64_t off) {
     uint8_t buf[8];
     uint16_t sz;
     while(ptr && ptr < off) {
-        if(prev_ptr == ptr) return EOF;
+        if(unlikely(ptr == prev_ptr)) { // 文件损坏
+            errno = ESPIPE;
+            return EOF;
+        }
         if(prev_prev_ptr && ptr < prev_ptr) { // 不符合顺序，进行一次调整
             lseek(fd, prev_prev_ptr, SEEK_SET);
             putle64(buf, ptr);

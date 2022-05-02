@@ -29,6 +29,13 @@ void* create_index(int fd, type_t t, void* buf);
 // 返回：索引头节点的指针 index
 void* load_index(int fd, type_t t, uint64_t ptr, void* buf);
 
+// 移除 index 并释放空间
+int remove_index(int fd, type_t t, void* index);
+
+// 统计索引条数
+// 返回：索引条数
+uint64_t count_items(int fd, type_t t, void* index);
+
 // 插入一条索引
 int insert_item(int fd, type_t t, void* index, key_t k, uint64_t ptr);
 
@@ -37,6 +44,7 @@ int insert_item(int fd, type_t t, void* index, key_t k, uint64_t ptr);
 uint64_t find_item_by_key(int fd, type_t t, void* index, key_t k);
 
 // 使用索引删除项
-int remove_item_by_key(int fd, type_t t, void* index, key_t k);
+// 返回：ptr
+uint64_t remove_item_by_key(int fd, type_t t, void* index, key_t k);
 
 #endif
