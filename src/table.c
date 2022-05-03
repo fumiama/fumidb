@@ -115,7 +115,7 @@ void* create_table(int fd, char* buf, const char* name, uint16_t row_len, ...) {
     va_end(list);
 
     len += (int)row_len*(8+1) + 8*foreign_cnt;
-    if(len > PAGESZ-2) {
+    if(len > PAGESZ) {
         errno = EFBIG;
         return NULL;
     }
