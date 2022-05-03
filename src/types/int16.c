@@ -70,7 +70,7 @@ uint64_t count_int16_items(int fd, void* index) {
     // 计算总的条目数
     for(int i = 0; i < 128; i++) {
         int s = ((uint8_t*)(index+24))[i];
-        if(unlikely(!s && ((uint8_t*)(index+INT16_INDEX_SZ+8))[i*32])) {
+        if(!s && ((uint8_t*)(index+INT16_INDEX_SZ+8))[i*32]) {
             total += 256;
             continue;
         }
@@ -78,7 +78,7 @@ uint64_t count_int16_items(int fd, void* index) {
     }
     for(int i = 128; i < 256; i++) {
         int s = ((uint8_t*)(index+24))[i];
-        if(unlikely(!s && ((uint8_t*)(index+INT16_INDEX_SZ+8+8))[i*32])) {
+        if(!s && ((uint8_t*)(index+INT16_INDEX_SZ+8+8))[i*32]) {
             total += 256;
             continue;
         }
@@ -133,7 +133,7 @@ int insert_int16_item(int fd, void* index, key_t k, uint64_t ptr) {
         #endif
         for(int i = 0; i < key/256; i++) {
             int s = ((uint8_t*)(index+24))[i];
-            if(unlikely(!s && ((uint8_t*)(index+INT16_INDEX_SZ+8))[i*32])) {
+            if(!s && ((uint8_t*)(index+INT16_INDEX_SZ+8))[i*32]) {
                 sum += 256;
                 continue;
             }
@@ -155,7 +155,7 @@ int insert_int16_item(int fd, void* index, key_t k, uint64_t ptr) {
         #endif
         for(int i = 0; i < 128; i++) {
             int s = ((uint8_t*)(index+24))[i];
-            if(unlikely(!s && ((uint8_t*)(index+INT16_INDEX_SZ+8))[i*32])) {
+            if(!s && ((uint8_t*)(index+INT16_INDEX_SZ+8))[i*32]) {
                 sum += 256;
                 continue;
             }
@@ -195,12 +195,11 @@ int insert_int16_item(int fd, void* index, key_t k, uint64_t ptr) {
         for(int i = 0; i < sum/256; i++) {
             if(lseek(fd, ptr, SEEK_SET) < 0) return EOF;
             readle64(fd, ptr);
-            if(unlikely(!ptr)) {
-                errno = ESPIPE;
-                return EOF;
-            }
         }
-        lseek(fd, 8*(sum%256+1), SEEK_CUR);
+        #ifdef DEBUG
+            printf("seek: %016llx, ", ptr);
+        #endif
+        if(lseek(fd, ptr+8*(sum%256+1), SEEK_SET) < 0) return EOF;
         #ifdef DEBUG
             puts("replace");
         #endif
@@ -315,7 +314,7 @@ uint64_t find_item_by_int16_key(int fd, void* index, key_t k) {
         #endif
         for(int i = 0; i < key/256; i++) {
             int s = ((uint8_t*)(index+24))[i];
-            if(unlikely(!s && ((uint8_t*)(index+INT16_INDEX_SZ+8))[i*32])) {
+            if(!s && ((uint8_t*)(index+INT16_INDEX_SZ+8))[i*32]) {
                 sum += 256;
                 continue;
             }
@@ -338,7 +337,7 @@ uint64_t find_item_by_int16_key(int fd, void* index, key_t k) {
         #endif
         for(int i = 0; i < 128; i++) {
             int s = ((uint8_t*)(index+24))[i];
-            if(unlikely(!s && ((uint8_t*)(index+INT16_INDEX_SZ+8))[i*32])) {
+            if(!s && ((uint8_t*)(index+INT16_INDEX_SZ+8))[i*32]) {
                 sum += 256;
                 continue;
             }
@@ -346,7 +345,7 @@ uint64_t find_item_by_int16_key(int fd, void* index, key_t k) {
         }
         for(int i = 128; i < key/256; i++) {
             int s = ((uint8_t*)(index+24))[i];
-            if(unlikely(!s && ((uint8_t*)(index+INT16_INDEX_SZ+8+8))[i*32])) {
+            if(!s && ((uint8_t*)(index+INT16_INDEX_SZ+8+8))[i*32]) {
                 sum += 256;
                 continue;
             }
@@ -418,7 +417,7 @@ uint64_t remove_item_by_int16_key(int fd, void* index, key_t k) {
         #endif
         for(int i = 0; i < key/256; i++) {
             int s = ((uint8_t*)(index+24))[i];
-            if(unlikely(!s && ((uint8_t*)(index+INT16_INDEX_SZ+8))[i*32])) {
+            if(!s && ((uint8_t*)(index+INT16_INDEX_SZ+8))[i*32]) {
                 sum += 256;
                 continue;
             }
@@ -441,7 +440,7 @@ uint64_t remove_item_by_int16_key(int fd, void* index, key_t k) {
         #endif
         for(int i = 0; i < 128; i++) {
             int s = ((uint8_t*)(index+24))[i];
-            if(unlikely(!s && ((uint8_t*)(index+INT16_INDEX_SZ+8))[i*32])) {
+            if(!s && ((uint8_t*)(index+INT16_INDEX_SZ+8))[i*32]) {
                 sum += 256;
                 continue;
             }
@@ -449,7 +448,7 @@ uint64_t remove_item_by_int16_key(int fd, void* index, key_t k) {
         }
         for(int i = 128; i < key/256; i++) {
             int s = ((uint8_t*)(index+24))[i];
-            if(unlikely(!s && ((uint8_t*)(index+INT16_INDEX_SZ+8+8))[i*32])) {
+            if(!s && ((uint8_t*)(index+INT16_INDEX_SZ+8+8))[i*32]) {
                 sum += 256;
                 continue;
             }

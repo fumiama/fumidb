@@ -149,6 +149,24 @@ int main() {
         }
     }
 
+    for(int i = 57000; i < 65536+259; i++) {
+        if(insert_item(fd, TYPE_INT16, index, (key_t)i, i*1234)) {
+            printf("%u ", (uint16_t)i);
+            fflush(stdout);
+            perror("insert_int16_item");
+            return 10;
+        }
+    }
+
+    for(int i = 57000; i < 65536+259; i++) {
+        if((int)find_item_by_key(fd, TYPE_INT16, index, (key_t)i) != i*1234) {
+            printf("%u ", (uint16_t)i);
+            fflush(stdout);
+            perror("find_item_by_key");
+            return 11;
+        }
+    }
+
     close(fd);
     /*                         end test int16                             */
     // remove("types_test_tmp.bin");
