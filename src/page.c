@@ -121,12 +121,21 @@ void* alloc_block(int fd, uint16_t size, void* blk) {
     uint8_t buf[8];
     uint16_t blksz;
 
-    if(blk == NULL) return NULL;
-    if(size > PAGESZ) return NULL;
+    if(unlikely(blk == NULL)) {
+        errno = EINVAL;
+        return NULL;
+    }
+    if(unlikely(size > PAGESZ)) {
+        errno = EFBIG;
+        return NULL;
+    }
     // 对于 page，只关心位于第一页 8~15 字节的 ptr of unused blk
     while(ptr) {
         if(unlikely(lseek(fd, ptr, SEEK_SET) < 0)) return NULL;
-        if(unlikely(read(fd, buf, 8) != 8)) return NULL;
+        if(unlikely(read(fd, buf, 8) != 8)) {
+            errno = ENOSR;
+            return NULL;
+        }
         if(unlikely(ptr == prev_ptr)) { // 文件损坏
             errno = ESPIPE;
             return NULL;
@@ -145,7 +154,10 @@ void* alloc_block(int fd, uint16_t size, void* blk) {
             putle16(blk+8, size);
             blk += 10;
             if(lseek(fd, prev_ptr, SEEK_SET) < 0) return NULL;
-            if(write(fd, buf, 8) != 8) return NULL; // 从空闲块链表移除本块
+            if(write(fd, buf, 8) != 8) { // 从空闲块链表移除本块
+                errno = ENOSR;
+                return NULL;
+            }
             return blk;
         }
         if(prev_prev_ptr && ptr < prev_ptr) { // 不符合顺序，进行一次调整
@@ -174,7 +186,10 @@ void* alloc_block(int fd, uint16_t size, void* blk) {
         errno = ESPIPE;
         return NULL;
     }
-    if(write(fd, nullpage, PAGESZ) != PAGESZ) return NULL;
+    if(write(fd, nullpage, PAGESZ) != PAGESZ) {
+        errno = ENOSR;
+        return NULL;
+    }
     if(PAGESZ-size > 10) { // 回收冗余
         if(lseek(fd, prev_ptr, SEEK_SET) < 0) return NULL;
         putle64(buf, ptr+size);

@@ -87,6 +87,28 @@ uint64_t count_int16_items(int fd, void* index) {
     return total;
 }
 
+#define set_bitmap(fd, index, key) {\
+    /* 写入位图 */\
+    if(key<32768) {\
+        ((uint8_t*)(index+INT16_INDEX_SZ+8))[key/8] |= 128>>(key%8);\
+        if(unlikely(sync_page(fd, index+INT16_INDEX_SZ+8))) { /* 失败，撤销更改 */\
+            ((uint8_t*)(index+INT16_INDEX_SZ+8))[key/8] &= ~(128>>(key%8));\
+            return EOF;\
+        }\
+    } else {\
+        ((uint8_t*)(index+INT16_INDEX_SZ+8+8))[key/8] |= 128>>(key%8);\
+        if(unlikely(sync_page(fd, index+INT16_INDEX_SZ+8+PAGESZ+8))) { /* 失败，撤销更改 */\
+            ((uint8_t*)(index+INT16_INDEX_SZ+8+8))[key/8] &= ~(128>>(key%8));\
+            return EOF;\
+        }\
+    }\
+    ((uint8_t*)(index+24))[key/256]++; /* 写入位图索引 */\
+    if(unlikely(sync_block(fd, index))) { /* 失败，撤销更改 */\
+        ((uint8_t*)(index+24))[key/256]--;\
+        return EOF;\
+    }\
+}
+
 int insert_int16_item(int fd, void* index, key_t k, uint64_t ptr) {
     int isexist, sum = 0, total = count_int16_items(fd, index);
     uint16_t key = (uint16_t)k;
@@ -153,25 +175,7 @@ int insert_int16_item(int fd, void* index, key_t k, uint64_t ptr) {
     }
 
     if(!isexist) {
-        // 写入位图
-        if(key<32768) {
-            ((uint8_t*)(index+INT16_INDEX_SZ+8))[key/8] |= 128>>(key%8);
-            if(unlikely(sync_page(fd, index+INT16_INDEX_SZ+8))) { // 失败，撤销更改
-                ((uint8_t*)(index+INT16_INDEX_SZ+8))[key/8] &= ~(128>>(key%8));
-                return EOF;
-            }
-        } else {
-            ((uint8_t*)(index+INT16_INDEX_SZ+8+8))[key/8] |= 128>>(key%8);
-            if(unlikely(sync_page(fd, index+INT16_INDEX_SZ+8+PAGESZ+8))) { // 失败，撤销更改
-                ((uint8_t*)(index+INT16_INDEX_SZ+8+8))[key/8] &= ~(128>>(key%8));
-                return EOF;
-            }
-        }
-        ((uint8_t*)(index+24))[key/256]++; // 写入位图索引
-        if(unlikely(sync_block(fd, index))) { // 失败，撤销更改
-            ((uint8_t*)(index+24))[key/256]--;
-            return EOF;
-        }
+        set_bitmap(fd, index, key);
         #ifdef DEBUG
             printf("i: %d, sumblk: %d, map: %02x, ", key/256, ((uint8_t*)(index+24))[key/256], ((uint8_t*)(index+INT16_INDEX_SZ+8+((key<32768)?0:8)))[key/8]);
         #endif
@@ -239,8 +243,11 @@ int insert_int16_item(int fd, void* index, key_t k, uint64_t ptr) {
                 return EOF;
             }
         }
+        #ifdef DEBUG
+            printf("set: %016llx, ", prev_ptr+8*((sum+1)%256+1));
+        #endif
         // 定位到最后一个未满块或第一个空块上的最后
-        lseek(fd, prev_ptr+8*(sum%256+1), SEEK_SET);
+        lseek(fd, prev_ptr+8*((sum+1)%256+1), SEEK_SET);
         #ifdef DEBUG
             puts("append");
         #endif
@@ -273,7 +280,7 @@ int insert_int16_item(int fd, void* index, key_t k, uint64_t ptr) {
     lseek(fd, -8, SEEK_CUR); // 返回
     write(fd, buf, 8); // 插入
     while(prev_ptr) { // 一直搬移到末尾
-        if(unlikely(offset && !(offset++%256))) { // 进入新的块
+        if(!(++offset%256)) { // 进入新的块
             lseek(fd, ptr, SEEK_SET);
             readle64(fd, first_ptr); // 下一个块指针
             if(unlikely(first_ptr == ptr)) { // 文件损坏
@@ -292,12 +299,20 @@ int insert_int16_item(int fd, void* index, key_t k, uint64_t ptr) {
 
 uint64_t find_item_by_int16_key(int fd, void* index, key_t k) {
     uint64_t ptr;
+    int isexist, sum = 0;
     uint16_t key = (uint16_t)k;
-    uint16_t sum;
     if(key < 32768) {
-        int isexist = ((uint8_t*)(index+INT16_INDEX_SZ+8))[key/8] & (128>>(key%8));
+        // key是否已存在
+        isexist = ((uint8_t*)(index+INT16_INDEX_SZ+8))[key/8] & (128>>(key%8));
         if(!isexist) return 0;
-        sum = __builtin_popcount(((uint8_t*)(index+INT16_INDEX_SZ+8))[key/8] & ~(0xff>>(key%8)));
+        // 查找 key 之前共有多少索引
+        for(int i = key/256*32; i < key/8; i++) { // 从未计算的32位组开始算起
+            sum += __builtin_popcount(((uint8_t*)(index+INT16_INDEX_SZ+8))[i]);
+        }
+        sum += __builtin_popcount(((uint8_t*)(index+INT16_INDEX_SZ+8))[key/8] & ~(0xff>>(key%8)));
+        #ifdef DEBUG
+            printf("popc: %d, ", sum);
+        #endif
         for(int i = 0; i < key/256; i++) {
             int s = ((uint8_t*)(index+24))[i];
             if(unlikely(!s && ((uint8_t*)(index+INT16_INDEX_SZ+8))[i*32])) {
@@ -306,10 +321,21 @@ uint64_t find_item_by_int16_key(int fd, void* index, key_t k) {
             }
             sum += s;
         }
+        #ifdef DEBUG
+            printf("sum: %d, ", sum);
+        #endif
     } else {
-        int isexist = ((uint8_t*)(index+INT16_INDEX_SZ+8+8))[key/8] & (128>>(key%8));
+        // key是否已存在
+        isexist = ((uint8_t*)(index+INT16_INDEX_SZ+8+8))[key/8] & (128>>(key%8));
         if(!isexist) return 0;
-        sum = __builtin_popcount(((uint8_t*)(index+INT16_INDEX_SZ+8+8))[key/8] & ~(0xff>>(key%8)));
+        // 查找 key 之前共有多少索引
+        for(int i = key/256*32; i < key/8; i++) { // 从未计算的32位组开始算起
+            sum += __builtin_popcount(((uint8_t*)(index+INT16_INDEX_SZ+8+8))[i]);
+        }
+        sum += __builtin_popcount(((uint8_t*)(index+INT16_INDEX_SZ+8+8))[key/8] & ~(0xff>>(key%8)));
+        #ifdef DEBUG
+            printf("popc: %d, ", sum);
+        #endif
         for(int i = 0; i < 128; i++) {
             int s = ((uint8_t*)(index+24))[i];
             if(unlikely(!s && ((uint8_t*)(index+INT16_INDEX_SZ+8))[i*32])) {
@@ -326,28 +352,70 @@ uint64_t find_item_by_int16_key(int fd, void* index, key_t k) {
             }
             sum += s;
         }
+        #ifdef DEBUG
+            printf("sum: %d, ", sum);
+        #endif
     }
     ptr = le64(index+16);
-    for(int i = 0; i < sum/256 && ptr; i++) {
+    for(int i = 0; i < sum/256; i++) {
         if(lseek(fd, ptr, SEEK_SET) < 0) return EOF;
         readle64(fd, ptr);
     }
-    if(!ptr) return EOF;
-    ptr += 8*(sum%256+1);
-    if(lseek(fd, ptr, SEEK_SET) < 0) return EOF;
+    #ifdef DEBUG
+        printf("seek: %016llx, ", ptr);
+    #endif
+    if(lseek(fd, ptr+8*(sum%256+1), SEEK_SET) < 0) return EOF;
     readle64(fd, ptr);
+    #ifdef DEBUG
+        printf("ptr: %d\n", (int)ptr);
+    #endif
     return ptr;
+}
+
+#define clear_bitmap(fd, index, key) {\
+    /* 写入位图 */\
+    if(key<32768) {\
+        ((uint8_t*)(index+INT16_INDEX_SZ+8))[key/8] &= ~(128>>(key%8));\
+        if(unlikely(sync_page(fd, index+INT16_INDEX_SZ+8))) { /* 失败，撤销更改 */\
+            ((uint8_t*)(index+INT16_INDEX_SZ+8))[key/8] |= 128>>(key%8);\
+            return EOF;\
+        }\
+    } else {\
+        ((uint8_t*)(index+INT16_INDEX_SZ+8+8))[key/8] &= ~(128>>(key%8));\
+        if(unlikely(sync_page(fd, index+INT16_INDEX_SZ+8+PAGESZ+8))) { /* 失败，撤销更改 */\
+            ((uint8_t*)(index+INT16_INDEX_SZ+8+8))[key/8] |= 128>>(key%8);\
+            return EOF;\
+        }\
+    }\
+    ((uint8_t*)(index+24))[key/256]--; /* 写入位图索引 */\
+    if(unlikely(sync_block(fd, index))) { /* 失败，撤销更改 */\
+        ((uint8_t*)(index+24))[key/256]++;\
+        return EOF;\
+    }\
 }
 
 uint64_t remove_item_by_int16_key(int fd, void* index, key_t k) {
     uint64_t ptr;
+    int isexist, sum = 0;
     uint16_t key = (uint16_t)k;
-    uint16_t sum;
     char buf[8];
+
+    #ifdef DEBUG
+        printf("No.%u: ", (int)key);
+    #endif
+
     if(key < 32768) {
-        int isexist = ((uint8_t*)(index+INT16_INDEX_SZ+8))[key/8] & (128>>(key%8));
+        // key是否已存在
+        isexist = ((uint8_t*)(index+INT16_INDEX_SZ+8))[key/8] & (128>>(key%8));
         if(!isexist) return 0;
-        sum = __builtin_popcount(((uint8_t*)(index+INT16_INDEX_SZ+8))[key/8] & ~(0xff>>(key%8)));
+        // 查找 key 之前共有多少索引
+        for(int i = key/256*32; i < key/8; i++) { // 从未计算的32位组开始算起
+            sum += __builtin_popcount(((uint8_t*)(index+INT16_INDEX_SZ+8))[i]);
+        }
+        sum += __builtin_popcount(((uint8_t*)(index+INT16_INDEX_SZ+8))[key/8] & ~(0xff>>(key%8)));
+        #ifdef DEBUG
+            printf("popc: %d, ", sum);
+        #endif
         for(int i = 0; i < key/256; i++) {
             int s = ((uint8_t*)(index+24))[i];
             if(unlikely(!s && ((uint8_t*)(index+INT16_INDEX_SZ+8))[i*32])) {
@@ -356,10 +424,21 @@ uint64_t remove_item_by_int16_key(int fd, void* index, key_t k) {
             }
             sum += s;
         }
+        #ifdef DEBUG
+            printf("sum: %d, ", sum);
+        #endif
     } else {
-        int isexist = ((uint8_t*)(index+INT16_INDEX_SZ+8+8))[key/8] & (128>>(key%8));
+        // key是否已存在
+        isexist = ((uint8_t*)(index+INT16_INDEX_SZ+8+8))[key/8] & (128>>(key%8));
         if(!isexist) return 0;
-        sum = __builtin_popcount(((uint8_t*)(index+INT16_INDEX_SZ+8+8))[key/8] & ~(0xff>>(key%8)));
+        // 查找 key 之前共有多少索引
+        for(int i = key/256*32; i < key/8; i++) { // 从未计算的32位组开始算起
+            sum += __builtin_popcount(((uint8_t*)(index+INT16_INDEX_SZ+8+8))[i]);
+        }
+        sum += __builtin_popcount(((uint8_t*)(index+INT16_INDEX_SZ+8+8))[key/8] & ~(0xff>>(key%8)));
+        #ifdef DEBUG
+            printf("popc: %d, ", sum);
+        #endif
         for(int i = 0; i < 128; i++) {
             int s = ((uint8_t*)(index+24))[i];
             if(unlikely(!s && ((uint8_t*)(index+INT16_INDEX_SZ+8))[i*32])) {
@@ -376,24 +455,38 @@ uint64_t remove_item_by_int16_key(int fd, void* index, key_t k) {
             }
             sum += s;
         }
+        #ifdef DEBUG
+            printf("sum: %d, ", sum);
+        #endif
     }
+
+    clear_bitmap(fd, index, key);
+    #ifdef DEBUG
+        printf("i: %d, sumblk: %d, map: %02x, ", key/256, ((uint8_t*)(index+24))[key/256], ((uint8_t*)(index+INT16_INDEX_SZ+8+((key<32768)?0:8)))[key/8]);
+    #endif
+
+    uint64_t cur_ptr, next_ptr, first_ptr = 0;
+    int offset = sum%256;
+
     ptr = le64(index+16);
-    for(int i = 0; i < sum/256 && ptr; i++) {
+    for(int i = 0; i < sum/256; i++) {
         if(lseek(fd, ptr, SEEK_SET) < 0) return EOF;
         readle64(fd, ptr);
     }
-    if(!ptr) return EOF;
-
-    int offset = sum%256;
-    uint64_t cur_ptr = ptr+8*(offset+1), next_ptr, first_ptr = 0;
     if(lseek(fd, ptr, SEEK_SET) < 0) return EOF;
     readle64(fd, next_ptr);
-    lseek(fd, cur_ptr, SEEK_SET); // 回到开头
-    readle64(fd, ptr); // 返回值
-    cur_ptr += 8;
+    if(lseek(fd, 8*offset, SEEK_CUR) < 0) return EOF;
+    readle64(fd, ptr);
+    #ifdef DEBUG
+        printf("ptr: %d, ", (int)ptr);
+    #endif
+    cur_ptr = lseek(fd, 0, SEEK_CUR); // 回到开头
+    #ifdef DEBUG
+        printf("cur: %016llx, next: %016llx\n", cur_ptr, next_ptr);
+    #endif
 
     do { // 一直循环到末尾
-        if(unlikely(offset++%256 == 255)) { // 当前位于末尾，需要从下一页取值
+        if(!(++offset%256)) { // 当前位于末尾，需要从下一页取值
             // 换下一页
             if(lseek(fd, next_ptr+8, SEEK_SET) < 0) return EOF;
             readle64(fd, first_ptr); // 读后一个值
@@ -402,7 +495,7 @@ uint64_t remove_item_by_int16_key(int fd, void* index, key_t k) {
             putle64(buf, first_ptr);
             write(fd, buf, 8); // 覆盖
             // 换下一页
-            cur_ptr = lseek(fd, next_ptr, SEEK_SET)+8;
+            cur_ptr = lseek(fd, next_ptr, SEEK_SET);
             readle64(fd, next_ptr);
             lseek(fd, 8, SEEK_CUR);
             continue;
@@ -412,8 +505,7 @@ uint64_t remove_item_by_int16_key(int fd, void* index, key_t k) {
         lseek(fd, -16, SEEK_CUR); // 回原处
         putle64(buf, first_ptr);
         write(fd, buf, 8); // 覆盖
-        cur_ptr += 8;
-        lseek(fd, 8, SEEK_CUR);
+        cur_ptr = lseek(fd, 8, SEEK_CUR)-8;
     } while(first_ptr);
 
     return ptr;

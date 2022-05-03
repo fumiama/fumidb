@@ -79,8 +79,8 @@ int main() {
         perror("create_int16_index");
         return 3;
     }
-    
-    for(int i = 57344, cnt = 0; i < 65536+4099; i++, cnt++) {
+    int cnt = 0;
+    for(int i = 57344; i < 65536+257; i++, cnt++) {
         int n;
         if((n=count_items(fd, TYPE_INT16, index)) != cnt) {
             printf("%d != %d\n", cnt, n);
@@ -93,6 +93,62 @@ int main() {
             return 4;
         }
     }
+
+    for(int i = 57344; i < 65536+257; i++) {
+        if((int)find_item_by_key(fd, TYPE_INT16, index, (key_t)i) != i) {
+            printf("%u ", (uint16_t)i);
+            fflush(stdout);
+            perror("find_item_by_key");
+            return 5;
+        }
+    }
+
+    close(fd);
+    fd = open("types_test_tmp.bin", O_RDWR, 0644);
+    memset(buf, 0, sizeof(buf));
+    index = load_index(fd, TYPE_INT16, HEADERSZ, buf);
+
+    for(int i = 65500; i < 65536+10; i++, cnt--) {
+        int n;
+        if((n=count_items(fd, TYPE_INT16, index)) != cnt) {
+            printf("%d != %d\n", cnt, n);
+            return 6;
+        }
+        if(remove_item_by_key(fd, TYPE_INT16, index, (key_t)i) != i) {
+            printf("%u ", (uint16_t)i);
+            fflush(stdout);
+            perror("remove_item_by_key");
+            return 6;
+        }
+    }
+
+    for(int i = 65500; i < 65536+10; i++) {
+        if((int)find_item_by_key(fd, TYPE_INT16, index, (key_t)i) != 0) {
+            printf("%u ", (uint16_t)i);
+            fflush(stdout);
+            perror("find_item_by_key");
+            return 7;
+        }
+    }
+
+    for(int i = 57344; i < 65500; i++) {
+        if((int)find_item_by_key(fd, TYPE_INT16, index, (key_t)i) != i) {
+            printf("%u ", (uint16_t)i);
+            fflush(stdout);
+            perror("find_item_by_key");
+            return 8;
+        }
+    }
+
+    for(int i = 65536+10; i < 65536+257; i++) {
+        if((int)find_item_by_key(fd, TYPE_INT16, index, (key_t)i) != i) {
+            printf("%u ", (uint16_t)i);
+            fflush(stdout);
+            perror("find_item_by_key");
+            return 9;
+        }
+    }
+
     close(fd);
     /*                         end test int16                             */
     // remove("types_test_tmp.bin");
