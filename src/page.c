@@ -326,13 +326,20 @@ int add_block(int fd, uint16_t size, uint64_t off) {
     lseek(fd, prev_ptr, SEEK_SET);
     putle64(buf, off);
     if(write(fd, buf, 8) != 8) return EOF; // 将本页附加到链表
+    #ifdef DEBUG
+        printf("add blk: %016llx, next ptr: %016llx, size: %d\n", off, ptr, size);
+    #endif
     readle16(fd, sz);
+    putle16(buf, sz);
     if(prev_ptr+sz == off && prev_ptr%PAGESZ < off%PAGESZ) { // 可以和前一块合并
         lseek(fd, prev_ptr, SEEK_SET);
         putle64(buf, ptr);
         write(fd, buf, 8);
         putle16(buf, size+sz);
         write(fd, buf, 2);
+        #ifdef DEBUG
+            printf("merge front: %016llx, size: %d\n", ptr, size+sz);
+        #endif
         return 0;
     }
     if(off+size == ptr && off%PAGESZ < ptr%PAGESZ) { // 可以和后一块合并
@@ -344,6 +351,10 @@ int add_block(int fd, uint16_t size, uint64_t off) {
         write(fd, buf, 8);
         putle16(buf, size+sz);
         write(fd, buf, 2);
+        #ifdef DEBUG
+            printf("merge rear: %016llx, size: %d\n", prev_ptr, size+sz);
+        #endif
+        return 0;
     }
     return 0;
 }

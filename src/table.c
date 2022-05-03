@@ -44,9 +44,35 @@ static int _add_index_type(int fd, uint64_t* index_ptr, type_t t) {
     void* buf = malloc(sz);
     if(buf == NULL) return 1;
     void* index = create_index(fd, t, buf);
+    if(index == NULL) {
+        free(buf);
+        return 2;
+    }
     *index_ptr = le64(buf);
     free(buf);
     return 0;
+}
+
+// 移除 t 类型索引
+// 返回：
+//    1  失败，详见 errno
+//    0  成功
+static int _remove_index_type(int fd, type_t t, uint64_t ptr) {
+    int sz = _calc_index_size(t);
+    if(sz <= 0) {
+        errno = EINVAL;
+        return EINVAL;
+    }
+    void* buf = malloc(sz);
+    if(buf == NULL) return 1;
+    void* index = load_index(fd, t, ptr, buf);
+    if(index == NULL) {
+        free(buf);
+        return 2;
+    }
+    sz = remove_index(fd, t, index);
+    free(buf);
+    return sz;
 }
 
 // 创建表，可变参数为本表的一行的 types，详见 types.h
@@ -127,6 +153,9 @@ void* create_table(int fd, char* buf, const char* name, int row_len, ...) {
     // 将 page 变为 block
     putle64(buf, ptr);
     putle16(buf+8, len);
+    #ifdef DEBUG
+        printf("create len: %d\n", len);
+    #endif
     return buf+10;
 }
 
@@ -155,6 +184,9 @@ void* load_table(int fd, char* buf, uint64_t ptr) {
     putle16(buf+8, len); // this blk len
     lseek(fd, ptr, SEEK_SET);
     if(read(fd, buf+10, len) != len) return NULL;
+    #ifdef DEBUG
+        printf("load len: %d\n", len);
+    #endif
     return buf+10;
 }
 
@@ -172,12 +204,41 @@ char* get_table_name(void* table, char* buf) {
     return buf;
 }
 
+uint64_t get_index_ptr(void* table, uint16_t pos) {
+    int len = 8+2+le16(table+8);
+    uint16_t rlen = le16(table+len);
+    if(pos >= rlen) {
+        errno = EINVAL;
+        return 0;
+    }
+    len += 2;
+    type_t t = ((type_t*)table)[len+(int)pos];
+    len += (int)rlen+(int)pos*8;
+    return *(uint64_t*)(table+len);
+}
+
 // 为 pos 位置的列创建索引。不可用于 0 列，即 pk 列，因为 pk 必有索引
 // 返回：
-//    NULL  失败，详见 errno
-//    index 指向索引头的指针
-void* add_table_index(int fd, void* table, uint16_t pos) {
-    return NULL;
+//    0  失败，详见 errno
+//    ptr 指向索引头的指针
+uint64_t add_table_index(int fd, void* table, uint16_t pos) {
+    if(!pos) {
+        errno = EINVAL;
+        return 0;
+    }
+    int len = 8+2+le16(table+8);
+    uint16_t rlen = le16(table+len);
+    if(pos >= rlen) {
+        errno = EINVAL;
+        return 0;
+    }
+    len += 2;
+    type_t t = ((type_t*)table)[len+(int)pos];
+    len += (int)rlen+(int)pos*8;
+    if(*(uint64_t*)(table+len)) return *(uint64_t*)(table+len); // 已经有索引
+    if(_add_index_type(fd, table+len, t)) return 0;
+    if(sync_block(fd, table)) return 0;
+    return *(uint64_t*)(table+len);
 }
 
 // 删除 pos 位置的列的索引。不可用于 0 列，即 pk 列，因为 pk 必有索引
@@ -185,7 +246,24 @@ void* add_table_index(int fd, void* table, uint16_t pos) {
 //    非 0  失败，详见 errno
 //    0     成功
 int remove_table_index(int fd, void* table, uint16_t pos) {
-    return 0;
+    if(!pos) {
+        errno = EINVAL;
+        return 0;
+    }
+    int len = 8+2+le16(table+8);
+    uint16_t rlen = le16(table+len);
+    if(pos >= rlen) {
+        errno = EINVAL;
+        return 0;
+    }
+    len += 2;
+    type_t t = ((type_t*)table)[len+(int)pos];
+    len += (int)rlen+(int)pos*8;
+    uint64_t ptr = *(uint64_t*)(table+len);
+    if(ptr == 0) return 0; // 没有索引
+    *(uint64_t*)(table+len) = 0; // 清除
+    _remove_index_type(fd, t, ptr);
+    return sync_block(fd, table);
 }
 
 // 插入一行，如果 pk 有值则替换

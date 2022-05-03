@@ -51,5 +51,6 @@ int main() {
         return 4;
     }
     if(strcmp(get_table_name(table, namebuf), "test_table")) return 5;
+    if(get_index_ptr(table, 0) != 0x100) return 6;
     close(fd);
 }
