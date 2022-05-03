@@ -35,7 +35,7 @@ static int _calc_index_size(type_t t) {
 // 返回：
 //    1  失败，详见 errno
 //    0  成功
-static void* _add_index_type(int fd, uint64_t* index_ptr, type_t t) {
+static int _add_index_type(int fd, uint64_t* index_ptr, type_t t) {
     int sz = _calc_index_size(t);
     if(sz <= 0) {
         errno = EINVAL;
@@ -56,10 +56,8 @@ static void* _add_index_type(int fd, uint64_t* index_ptr, type_t t) {
 // 返回：
 //    NULL  失败，详见 errno
 //    table 指向表头的指针
-void* create_table(int fd, char* buf, const char* name, uint16_t row_len, ...) {
-    va_list list;
-
-    if(!row_len || row_len > 128) {
+void* create_table(int fd, char* buf, const char* name, int row_len, ...) {
+    if(row_len <= 0 || row_len > 128) {
         errno = EINVAL;
         return NULL;
     }
@@ -88,9 +86,10 @@ void* create_table(int fd, char* buf, const char* name, uint16_t row_len, ...) {
     len += 2;
 
     int foreign_cnt = 0;
+    va_list list;
     va_start(list, row_len);
 
-    type_t t = va_arg(list, type_t); // 是主键，检查是否有 unique + nonnull 类型修饰符
+    type_t t = va_arg(list, int); // 是主键，检查是否有 unique + nonnull 类型修饰符
     if(!(t&EXTYPE_NONNULL) || !(t&EXTYPE_UNIQUE)) {
         errno = EINVAL;
         return NULL;
@@ -104,7 +103,7 @@ void* create_table(int fd, char* buf, const char* name, uint16_t row_len, ...) {
     // 为 pk 创建索引
     if(_add_index_type(fd, table+len+(int)row_len, t)) return NULL;
     for(int i = 1; i < (int)row_len; i++) {
-        t = va_arg(list, type_t);
+        t = va_arg(list, int);
         ((type_t*)table)[len+i] = t; // 填充 type of row No.i
         if(t & EXTYPE_FOREIGNKEY) { // 是外键，还有一个参数
             ptr = va_arg(list, uint64_t);
@@ -137,7 +136,26 @@ void* create_table(int fd, char* buf, const char* name, uint16_t row_len, ...) {
 //    NULL  失败，详见 errno
 //    table 指向表头的指针
 void* load_table(int fd, char* buf, uint64_t ptr) {
-    return NULL;
+    uint64_t tmp;
+    int len = 8;
+    putle64(buf, ptr); // this blk ptr
+    if(lseek(fd, ptr+8, SEEK_SET) < 0) return NULL; // skip next table ptr
+    readle16(fd, tmp); // table name length
+    len += 2+(int)tmp;
+    if(lseek(fd, tmp, SEEK_CUR) < 0) return NULL;
+    readle16(fd, tmp); // table row length
+    len += 2+((int)tmp)*(8+1);
+    for(int i = 0; i < (int)tmp; i++) {
+        type_t t;
+        read(fd, &t, 1);
+        if(t&EXTYPE_FOREIGNKEY) { // 外键有额外 ptr 长度
+            len += 8;
+        }
+    }
+    putle16(buf+8, len); // this blk len
+    lseek(fd, ptr, SEEK_SET);
+    if(read(fd, buf+10, len) != len) return NULL;
+    return buf+10;
 }
 
 // 获得表名长度，包含结尾0
@@ -178,7 +196,7 @@ int remove_table_index(int fd, void* table, uint16_t pos) {
 // 返回：
 //    0   失败，详见 errno
 //    ptr 本行插入的位置
-uint64_t insert_row(int fd, void* table, uint16_t row_len, ...) {
+uint64_t insert_row(int fd, void* table, int row_len, ...) {
     return 0;
 }
 
@@ -200,7 +218,7 @@ uint64_t find_row_by_pk(int fd, void* table, key_t k) {
 // 返回：
 //    非 0  失败，详见 errno
 //    0     成功
-int find_row_by(int fd, void* table, int (*f)(uint64_t), uint16_t row_len, ...) {
+int find_row_by(int fd, void* table, int (*f)(uint64_t), int row_len, ...) {
     return 1;
 }
 
@@ -221,6 +239,6 @@ int remove_row_by_pk(int fd, void* table, key_t k) {
 // 返回：
 //    非 0  失败，详见 errno
 //    0     成功
-int remove_row_by(int fd, void* table, uint16_t row_len, ...) {
+int remove_row_by(int fd, void* table, int row_len, ...) {
     return 1;
 }

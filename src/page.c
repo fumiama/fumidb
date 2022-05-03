@@ -30,7 +30,7 @@ void* alloc_page(int fd, void* page) {
             if(write(fd, buf, 8) != 8) return NULL; // 从空闲块链表移除本块
             return page;
         }
-        if(prev_prev_ptr && ptr < prev_ptr) { // 不符合顺序，进行一次调整
+        if(prev_prev_ptr && ptr < prev_ptr && ptr != 8) { // 不符合顺序，进行一次调整
             lseek(fd, prev_prev_ptr, SEEK_SET);
             putle64(buf, ptr);
             if(write(fd, buf, 8) != 8) return NULL;   // 1->next = 3
@@ -87,7 +87,7 @@ int free_page(int fd, void* page) {
             errno = ESPIPE;
             return EOF;
         }
-        if(prev_prev_ptr && ptr < prev_ptr) { // 不符合顺序，进行一次调整
+        if(prev_prev_ptr && ptr < prev_ptr && ptr != 8) { // 不符合顺序，进行一次调整
             lseek(fd, prev_prev_ptr, SEEK_SET);
             putle64(buf, ptr);
             if(write(fd, buf, 8) != 8) return EOF; // 1->next = 3
@@ -140,7 +140,11 @@ void* alloc_block(int fd, uint16_t size, void* blk) {
             errno = ESPIPE;
             return NULL;
         }
-        readle16(fd, blksz);
+        if(ptr == 8) blksz = 0;
+        else readle16(fd, blksz);
+        #ifdef DEBUG
+            printf("ptr: %016llx, blksize: %d\n", ptr, blksz);
+        #endif
         if(blksz >= size) { // 找到符合要求的块
             if(blksz - size > 10) { // 分裂块
                 lseek(fd, ptr+size, SEEK_SET);
@@ -152,6 +156,9 @@ void* alloc_block(int fd, uint16_t size, void* blk) {
             }
             putle64(blk, ptr);
             putle16(blk+8, size);
+            #ifdef DEBUG
+                printf("find match: ptr: %016llx, size: %d\n", ptr, size);
+            #endif
             blk += 10;
             if(lseek(fd, prev_ptr, SEEK_SET) < 0) return NULL;
             if(write(fd, buf, 8) != 8) { // 从空闲块链表移除本块
@@ -160,7 +167,7 @@ void* alloc_block(int fd, uint16_t size, void* blk) {
             }
             return blk;
         }
-        if(prev_prev_ptr && ptr < prev_ptr) { // 不符合顺序，进行一次调整
+        if(prev_prev_ptr && ptr < prev_ptr && ptr != 8) { // 不符合顺序，进行一次调整
             lseek(fd, prev_prev_ptr, SEEK_SET);
             putle64(buf, ptr);
             if(write(fd, buf, 8) != 8) return NULL;   // 1->next = 3
@@ -221,6 +228,9 @@ int sync_block(int fd, void* blk) {
         errno = EFBIG;
         return EOF;
     }
+    #ifdef DEBUG
+        printf("off: %016llx, size: %d\n", off, size);
+    #endif
     if(lseek(fd, off, SEEK_SET) < 0) return EOF;
     return write(fd, blk, size) != size;
 }
@@ -235,7 +245,7 @@ int free_block(int fd, void* blk) {
             errno = ESPIPE;
             return EOF;
         }
-        if(prev_prev_ptr && ptr < prev_ptr) { // 不符合顺序，进行一次调整
+        if(prev_prev_ptr && ptr < prev_ptr && ptr != 8) { // 不符合顺序，进行一次调整
             lseek(fd, prev_prev_ptr, SEEK_SET);
             putle64(buf, ptr);
             if(write(fd, buf, 8) != 8) return EOF; // 1->next = 3
@@ -288,7 +298,7 @@ int add_block(int fd, uint16_t size, uint64_t off) {
             errno = ESPIPE;
             return EOF;
         }
-        if(prev_prev_ptr && ptr < prev_ptr) { // 不符合顺序，进行一次调整
+        if(prev_prev_ptr && ptr < prev_ptr && ptr != 8) { // 不符合顺序，进行一次调整
             lseek(fd, prev_prev_ptr, SEEK_SET);
             putle64(buf, ptr);
             if(write(fd, buf, 8) != 8) return EOF; // 1->next = 3

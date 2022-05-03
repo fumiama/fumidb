@@ -17,7 +17,7 @@ int main() {
         perror("create");
         return 1;
     }
-    if(init_file_header_page(fd) < 0) return 2;
+    if(init_file_header_page(fd)) return 2;
     void* index = create_index(fd, TYPE_INT8, buf);
     if(!index) {
         perror("create_int8_index");

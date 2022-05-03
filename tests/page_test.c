@@ -24,7 +24,7 @@ int main() {
         perror("create");
         return 1;
     }
-    if(init_file_header_page(fd) < 0) return 2;
+    if(init_file_header_page(fd)) return 2;
     for(int i = 0; i < 16; i++) {
         void* page = alloc_page(fd, nullpages[i]);
         if(page == NULL) {
