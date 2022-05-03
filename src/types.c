@@ -32,7 +32,7 @@ static void* load_not_impl_index(int fd, uint64_t ptr, void* buf) {
 // Function not implemented
 static int remove_not_impl_index(int fd, void* index) {
     errno = ENOSYS;
-    return 0;
+    return -2;
 }
 
 // Function not implemented
@@ -44,7 +44,7 @@ static uint64_t count_not_impl_items(int fd, void* index) {
 // Function not implemented
 static int insert_not_impl_item(int fd, void* index, key_t k, uint64_t ptr) {
     errno = ENOSYS;
-    return 0;
+    return -2;
 }
 
 // Function not implemented

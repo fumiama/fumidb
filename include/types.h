@@ -4,19 +4,19 @@
 #include <stdint.h>
 #include <errno.h>
 
-#define TYPE_INT8   0
-#define TYPE_INT16  1
-#define TYPE_INT32  2
-#define TYPE_INT64  3
-#define TYPE_FLOAT  4
-#define TYPE_DOUBLE 5
-#define TYPE_STRING 6
-#define TYPE_BINARY 7
+#define TYPE_INT8   ((uint8_t)0)
+#define TYPE_INT16  ((uint8_t)1)
+#define TYPE_INT32  ((uint8_t)2)
+#define TYPE_INT64  ((uint8_t)3)
+#define TYPE_FLOAT  ((uint8_t)4)
+#define TYPE_DOUBLE ((uint8_t)5)
+#define TYPE_STRING ((uint8_t)6)
+#define TYPE_BINARY ((uint8_t)7)
 
-#define EXTYPE_NULL         0x00
-#define EXTYPE_UNIQUE       0x40
-#define EXTYPE_NONNULL      0x80
-#define EXTYPE_FOREIGNKEY   0xc0
+#define EXTYPE_NULL         ((uint8_t)0x00)
+#define EXTYPE_UNIQUE       ((uint8_t)0x40)
+#define EXTYPE_NONNULL      ((uint8_t)0x80)
+#define EXTYPE_FOREIGNKEY   ((uint8_t)0xc0)
 
 typedef uint8_t type_t;
 typedef uint64_t key_t;
