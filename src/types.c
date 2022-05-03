@@ -1,3 +1,4 @@
+#include "../include/binary.h"
 #include "../include/types.h"
 #include "../include/types/int8.h"
 #include "../include/types/int16.h"
@@ -128,6 +129,23 @@ static _remove_by_key_t _remove_item_by_key[] = {
     remove_item_by_not_impl_key,
     remove_item_by_not_impl_key
 };
+
+int type_offset(type_t t) {
+    switch(t&7) {
+        case TYPE_INT8:
+        case TYPE_INT16:
+            return -10; // block
+        case TYPE_INT32:
+        case TYPE_FLOAT:
+        case TYPE_INT64:
+        case TYPE_DOUBLE:
+        case TYPE_STRING:
+            return -8; // page
+        case TYPE_BINARY: // 不能创建索引
+        default:
+            return 0;
+    }
+}
 
 void* create_index(int fd, type_t t, void* buf) {
     return _types_init[t&7](fd, buf);

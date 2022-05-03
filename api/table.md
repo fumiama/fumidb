@@ -8,16 +8,16 @@
 │  table name length  │     name     of     the     table     ( variable   length )     │
 ├─────────────────────┼──────────┬──────────┬──────────┬──────────┬──────────┬──────────┤
 │                     │ type  of │ type  of │ type  of │ type  of │ type  of │ type  of │
-│ table column length │  column  │  column  │  column  │  column  │  column  │  column  │
+│   table row length  │   row    │   row    │   row    │   row    │   row    │   row    │
 │                     │   No.1   │   No.2   │   No.3   │   No.4   │   No...  │   No.N   │
 ├─────────────────────┴──────────┴──────────┴──────────┴──────────┴──────────┴──────────┤
 │                index pointer of pk  ( this pointer will never be zero )               │
 ├───────────────────────────────────────────────────────────────────────────────────────┤
-│    index pointer of column No.2 ( if it's zero, there is no index for this column )   │
+│      index pointer of row  No.2 ( if it's zero, there is no index for this row  )     │
 ├───────────────────────────────────────────────────────────────────────────────────────┤
-│   index pointer of column No... ( if it's zero, there is no index for this column )   │
+│     index pointer of row  No... ( if it's zero, there is no index for this row  )     │
 ├───────────────────────────────────────────────────────────────────────────────────────┤
-│    index pointer of column No.N ( if it's zero, there is no index for this column )   │
+│      index pointer of row  No.N ( if it's zero, there is no index for this row  )     │
 ├───────────────────────────────────────────────────────────────────────────────────────┤
 │                  index pointer of first foreign key  ( if available )                 │
 ├───────────────────────────────────────────────────────────────────────────────────────┤
@@ -31,7 +31,7 @@
 > 区块长度固定，但是不同索引类型有所不同
 详见[索引格式](/api/index.md)。
 ### 表项
-> 区块长度固定，为`8+len(column1)+len(column2)+...+len(columnN)`字节
+> 区块长度固定，为`8+len(row 1)+len(row 2)+...+len(row N)`字节
 为方便遍历，数据表项以uint64的指针开头，代表下一项的地址。接下来按照[数据类型](/api/types.md)中规定的存储格式依次附加第一项、第二项直到第N项的值。
 #### 表项的增加
 优先附加到上一个表项末尾。如无法实现，则从空区块选取一个，或附加到整个文件末尾。

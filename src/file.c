@@ -37,6 +37,12 @@ uint64_t get_first_unused_block(int fd) {
     return ptr;
 }
 
+uint64_t get_next_unused_block(int fd, uint64_t ptr) {
+    if(lseek(fd, ptr, SEEK_SET) < 0) return EOF;
+    readle64(fd, ptr);
+    return ptr;
+}
+
 int set_first_table(int fd, uint64_t ptr) {
     uint8_t buf[8];
     if(lseek(fd, 16, SEEK_SET) < 0) return EOF;
@@ -47,6 +53,12 @@ int set_first_table(int fd, uint64_t ptr) {
 uint64_t get_first_table(int fd) {
     uint64_t ptr;
     if(lseek(fd, 16, SEEK_SET) < 0) return EOF;
+    readle64(fd, ptr);
+    return ptr;
+}
+
+uint64_t get_next_table(int fd, uint64_t ptr) {
+    if(lseek(fd, ptr, SEEK_SET) < 0) return EOF;
     readle64(fd, ptr);
     return ptr;
 }

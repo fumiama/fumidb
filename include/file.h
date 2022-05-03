@@ -25,6 +25,8 @@ int set_first_unused_block(int fd, uint64_t ptr);
 // 获得 ptr of unused blk 字段
 uint64_t get_first_unused_block(int fd);
 
+uint64_t get_next_unused_block(int fd, uint64_t ptr);
+
 // 设置 ptr of next table 字段
 // 返回：
 //    0   成功
@@ -34,5 +36,7 @@ int set_first_table(int fd, uint64_t ptr);
 
 // 获得 ptr of next table 字段
 uint64_t get_first_table(int fd);
+
+uint64_t get_next_table(int fd, uint64_t ptr);
 
 #endif

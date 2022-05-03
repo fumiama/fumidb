@@ -7,16 +7,18 @@
 // 创建表，可变参数为本表的一行的 types，详见 types.h
 // 如果 types 为外键，需要紧跟一个 uint64_t ptr
 // 指示外键链接到的表位置
+// len(buf) >= 4096+8+2=4106
 // 返回：
 //    NULL  失败，详见 errno
 //    table 指向表头的指针
-void* create_table(int fd, const char* name, ...);
+void* create_table(int fd, char* buf, const char* name, uint16_t row_len, ...);
 
 // 加载 ptr 位置的表
+// len(buf) >= 4096+8+2=4106
 // 返回：
 //    NULL  失败，详见 errno
 //    table 指向表头的指针
-void* load_table(int fd, uint64_t ptr);
+void* load_table(int fd, char* buf, uint64_t ptr);
 
 // 获得表名长度，包含结尾0
 uint16_t get_table_name_length(void* table);
@@ -45,7 +47,7 @@ int remove_table_index(int fd, void* table, uint16_t pos);
 // 返回：
 //    0   失败，详见 errno
 //    ptr 本行插入的位置
-uint64_t insert_row(int fd, void* table, ...);
+uint64_t insert_row(int fd, void* table, uint16_t row_len, ...);
 
 // 根据主键的匹配值查找行
 // 如果主键不为 string，k 直接装填其值
@@ -63,7 +65,7 @@ uint64_t find_row_by_pk(int fd, void* table, key_t k);
 // 返回：
 //    非 0  失败，详见 errno
 //    0     成功
-int find_row_by(int fd, void* table, int (*f)(uint64_t), ...);
+int find_row_by(int fd, void* table, int (*f)(uint64_t), uint16_t row_len, ...);
 
 // 根据主键的匹配值删除行
 // 如果主键不为 string，k 直接装填其值
@@ -80,6 +82,6 @@ int remove_row_by_pk(int fd, void* table, key_t k);
 // 返回：
 //    非 0  失败，详见 errno
 //    0     成功
-int remove_row_by(int fd, void* table, ...);
+int remove_row_by(int fd, void* table, uint16_t row_len, ...);
 
 #endif

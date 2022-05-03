@@ -21,6 +21,9 @@
 typedef uint8_t type_t;
 typedef uint64_t key_t;
 
+// 获得本类型 index 相对于 buffer 头的偏移
+int type_offset(type_t t);
+
 // 为类型 type 创建索引
 // 返回：索引头节点的指针 index
 void* create_index(int fd, type_t t, void* buf);
