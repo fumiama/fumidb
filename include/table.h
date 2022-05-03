@@ -11,7 +11,7 @@
 // 返回：
 //    NULL  失败，详见 errno
 //    table 指向表头的指针
-void* create_table(int fd, char* buf, const char* name, int row_len, ...);
+void* create_table(int fd, char* buf, const char* name, int row_len, const void* list);
 
 // 加载 ptr 位置的表
 // len(buf) >= 4096+8+2=4106
@@ -54,7 +54,7 @@ int remove_table_index(int fd, void* table, uint16_t pos);
 // 返回：
 //    0   失败，详见 errno
 //    ptr 本行插入的位置
-uint64_t insert_row(int fd, void* table, int row_len, ...);
+uint64_t insert_row(int fd, void* table, int row_len, const void* list);
 
 // 根据主键的匹配值查找行
 // 如果主键不为 string，k 直接装填其值
@@ -72,7 +72,7 @@ uint64_t find_row_by_pk(int fd, void* table, key_t k);
 // 返回：
 //    非 0  失败，详见 errno
 //    0     成功
-int find_row_by(int fd, void* table, int (*f)(uint64_t), int row_len, ...);
+int find_row_by(int fd, void* table, int (*f)(uint64_t), int row_len, const void* list);
 
 // 根据主键的匹配值删除行
 // 如果主键不为 string，k 直接装填其值
@@ -89,6 +89,6 @@ int remove_row_by_pk(int fd, void* table, key_t k);
 // 返回：
 //    非 0  失败，详见 errno
 //    0     成功
-int remove_row_by(int fd, void* table, int row_len, ...);
+int remove_row_by(int fd, void* table, int row_len, const void* list);
 
 #endif

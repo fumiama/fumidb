@@ -18,12 +18,13 @@ int main() {
     }
     if(init_file_header_page(fd)) return 2;
     void* table = create_table(
-        fd, buf, "test_table", 5,
-        TYPE_INT16|EXTYPE_NONNULL|EXTYPE_UNIQUE,
-        TYPE_INT64,
-        TYPE_INT8,
-        TYPE_STRING,
-        TYPE_BINARY
+        fd, buf, "test_table", 5, (type_t[]){
+            TYPE_INT16|EXTYPE_NONNULL|EXTYPE_UNIQUE,
+            TYPE_INT64,
+            TYPE_INT8,
+            TYPE_STRING,
+            TYPE_BINARY
+        }
     );
     if(table == NULL) {
         perror("create_table");

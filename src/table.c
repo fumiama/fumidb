@@ -82,7 +82,7 @@ static int _remove_index_type(int fd, type_t t, uint64_t ptr) {
 // 返回：
 //    NULL  失败，详见 errno
 //    table 指向表头的指针
-void* create_table(int fd, char* buf, const char* name, int row_len, ...) {
+void* create_table(int fd, char* buf, const char* name, int row_len, const void* list) {
     if(row_len <= 0 || row_len > 128) {
         errno = EINVAL;
         return NULL;
@@ -111,33 +111,43 @@ void* create_table(int fd, char* buf, const char* name, int row_len, ...) {
     putle16(table+len, row_len);
     len += 2;
 
-    int foreign_cnt = 0;
-    va_list list;
-    va_start(list, row_len);
+    int foreign_cnt = 0, ap = 0;
 
-    type_t t = va_arg(list, int); // 是主键，检查是否有 unique + nonnull 类型修饰符
+    type_t t = ((type_t*)list)[ap++]; // 是主键，检查是否有 unique + nonnull 类型修饰符
     if(!(t&EXTYPE_NONNULL) || !(t&EXTYPE_UNIQUE)) {
         errno = EINVAL;
         return NULL;
     }
     ((type_t*)table)[len] = t; // 填充 type of row No.0
+    #ifdef DEBUG
+        printf("fill[%d]: %d\n", ap, t);
+    #endif
     if(t & EXTYPE_FOREIGNKEY) { // 是外键，还有一个参数
-        ptr = va_arg(list, uint64_t);
+        ptr = ((uint64_t*)list)[ap];
+        #ifdef DEBUG
+            printf("fill[%d]: %016llx\n", ap, ptr);
+        #endif
+        ap += 8;
         putle64(table+len+(int)row_len*(8+1)+8*(foreign_cnt++), ptr);
     }
 
     // 为 pk 创建索引
     if(_add_index_type(fd, table+len+(int)row_len, t)) return NULL;
     for(int i = 1; i < (int)row_len; i++) {
-        t = va_arg(list, int);
+        t = ((type_t*)list)[ap++];
         ((type_t*)table)[len+i] = t; // 填充 type of row No.i
+        #ifdef DEBUG
+            printf("fill[%d]: %d\n", ap, t);
+        #endif
         if(t & EXTYPE_FOREIGNKEY) { // 是外键，还有一个参数
-            ptr = va_arg(list, uint64_t);
+            ptr = ((uint64_t*)list)[ap];
+            #ifdef DEBUG
+                printf("fill[%d]: %016llx\n", ap, ptr);
+            #endif
+            ap += 8;
             putle64(table+len+(int)row_len*(8+1)+8*(foreign_cnt++), ptr);
         }
     }
-
-    va_end(list);
 
     len += (int)row_len*(8+1) + 8*foreign_cnt;
     if(len > PAGESZ) {
@@ -274,7 +284,7 @@ int remove_table_index(int fd, void* table, uint16_t pos) {
 // 返回：
 //    0   失败，详见 errno
 //    ptr 本行插入的位置
-uint64_t insert_row(int fd, void* table, int row_len, ...) {
+uint64_t insert_row(int fd, void* table, int row_len, const void* list) {
     return 0;
 }
 
@@ -296,7 +306,7 @@ uint64_t find_row_by_pk(int fd, void* table, key_t k) {
 // 返回：
 //    非 0  失败，详见 errno
 //    0     成功
-int find_row_by(int fd, void* table, int (*f)(uint64_t), int row_len, ...) {
+int find_row_by(int fd, void* table, int (*f)(uint64_t), int row_len, const void* list) {
     return 1;
 }
 
@@ -317,6 +327,6 @@ int remove_row_by_pk(int fd, void* table, key_t k) {
 // 返回：
 //    非 0  失败，详见 errno
 //    0     成功
-int remove_row_by(int fd, void* table, int row_len, ...) {
+int remove_row_by(int fd, void* table, int row_len, const void* list) {
     return 1;
 }
