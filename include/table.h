@@ -43,6 +43,9 @@ uint64_t add_table_index(int fd, void* table, uint16_t pos);
 //    0     成功
 int remove_table_index(int fd, void* table, uint16_t pos);
 
+// 获取 ptr 位置的行的长度
+int get_row_length(int fd, void* table, uint64_t ptr);
+
 // 插入一行，如果 pk 有值则替换
 // list 以 key_t 为单元
 // 如果当前项有 nullable 属性，需要在此项之前

@@ -71,6 +71,8 @@ int main() {
         return 8;
     }
 
+    if(get_row_length(fd, table, ptr) != 57) return 1;
+
     if(lseek(fd, ptr, SEEK_SET) < 0) return 9;
     readle16(fd, ptr);
     if((uint16_t)ptr != 2333) {
@@ -119,6 +121,9 @@ int main() {
     }
     read(fd, buf, 5);
     if(strcmp(buf, "\x45\xff\x12\xda")) return 15;
+    if(remove_row_by_pk(fd, table, 2333)) return 16;
+    ptr = find_row_by_pk(fd, table, 2333);
+    if(ptr != 0) return 8;
     close(fd);
     // remove("table_test_tmp.bin");
 }

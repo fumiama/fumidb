@@ -283,6 +283,52 @@ uint64_t add_table_index(int fd, void* table, uint16_t pos) {
     return *(uint64_t*)(table+len);
 }
 
+#define DEBUG
+
+int get_row_length(int fd, void* table, uint64_t ptr) {
+    if(lseek(fd, ptr, SEEK_SET) < 0) return EOF;
+
+    int len = 8+2+le16(table+8);
+    int rlen = le16(table+len);
+    int sz = 0; // 本行长度
+    len += 2;
+
+    for(int i = 0; i < rlen; i++) {
+        type_t t = ((type_t*)table)[len+i];
+        #ifdef DEBUG
+            printf("type: %d, ", (int)t);
+        #endif
+        int size = _calc_type_size(t);
+        sz += size;
+        #ifdef DEBUG
+            printf("skip: %d, size: %d\n", size, sz);
+        #endif
+        if(lseek(fd, size, SEEK_CUR) < 0) return EOF;
+        int blen;
+        switch(t&7) {
+            case TYPE_STRING: // 是 string/binary，多读取一个长度
+            case TYPE_BINARY:
+                lseek(fd, -2, SEEK_CUR);
+                readle16(fd, blen);
+                #ifdef DEBUG
+                    printf("blen: %d, ", blen);
+                #endif
+                if(blen > PAGESZ/2 || blen <= 0) { // 长度超标
+                    errno = EFBIG;
+                    return 0;
+                }
+                sz += blen;
+                if(lseek(fd, blen, SEEK_CUR) < 0) return EOF;
+                break;
+            default: break;
+        }
+    }
+    #ifdef DEBUG
+        printf("total size: %d\n", sz);
+    #endif
+    return sz;
+}
+
 // 删除 pos 位置的列的索引。不可用于 0 列，即 pk 列，因为 pk 必有索引
 // 返回：
 //    非 0  失败，详见 errno
@@ -549,7 +595,41 @@ int find_row_by(int fd, void* table, int (*f)(uint64_t), int row_len, const void
 //    非 0  失败，详见 errno
 //    0     成功
 int remove_row_by_pk(int fd, void* table, key_t k) {
-    return 1;
+    int len = 8+2+le16(table+8);
+    int rlen = le16(table+len);
+    len += 2;
+
+    uint64_t indexptr = *(uint64_t*)(table+len+rlen);
+    #ifdef DEBUG
+        printf("indexptr: %016llx, ", indexptr);
+    #endif
+    type_t t = ((type_t*)table)[len];
+    int indexsz = _calc_index_size(t);
+    #ifdef DEBUG
+        printf("indexsz: %d, ", indexsz);
+    #endif
+
+    uint64_t ptr = find_row_by_pk(fd, table, k);
+    if(ptr == 0) return 0;
+    len = get_row_length(fd, table, ptr);
+    if(len <= 0) return EOF;
+    void* buf = malloc(indexsz);
+    if(buf == NULL) return EOF;
+    if(add_block(fd, len, ptr)) {
+        free(buf);
+        return EOF;
+    }
+    void* index = load_index(fd, t, indexptr, buf);
+    if(index == NULL) {
+        free(buf);
+        return EOF;
+    }
+    if(remove_index(fd, t, index)) {
+        free(buf);
+        return EOF;
+    }
+    free(buf);
+    return 0;
 }
 
 // 根据任意匹配值删除行
