@@ -4,7 +4,8 @@
 #include <stdint.h>
 #include "types.h"
 
-// 创建表，可变参数为本表的一行的 types，详见 types.h
+// 创建表，可变参数 list 为本表的一行的 types，详见 types.h
+// list 以 type_t 为单元，遇到 uint64_t ptr 时偏移 +8
 // 如果 types 为外键，需要紧跟一个 uint64_t ptr
 // 指示外键链接到的表位置
 // len(buf) >= 4096+8+2=4106
@@ -43,18 +44,18 @@ uint64_t add_table_index(int fd, void* table, uint16_t pos);
 int remove_table_index(int fd, void* table, uint16_t pos);
 
 // 插入一行，如果 pk 有值则替换
+// list 以 key_t 为单元
 // 如果当前项有 nullable 属性，需要在此项之前
-// 加一个 int isavailable，标记本项是否有值
+// 加一个 key_t isavailable，标记本项是否有值
 // 如果 isavailable==0，后面不再跟有本项数据
 // 如果 isavailable!=0，则在后面附加数据
-// 如果 val 不为 string，直接装填其值
-// 否则，值是指向 string 的指针 (const char*)
-// 如果是 binary，需要在指针之前提供一个 uint32 参数
-// 说明 binary 的大小
+// 如果 val 不为 string/binary，直接装填其值
+// 否则，值是指向 string/binary 的指针 (const char*)
+// 且需要在指针之前提供一个 key_t 参数指示其大小
 // 返回：
 //    0   失败，详见 errno
 //    ptr 本行插入的位置
-uint64_t insert_row(int fd, void* table, int row_len, const void* list);
+uint64_t insert_row(int fd, void* table, const key_t* list);
 
 // 根据主键的匹配值查找行
 // 如果主键不为 string，k 直接装填其值
