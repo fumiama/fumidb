@@ -5,6 +5,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#ifndef __null
+#  define __null 0
+#endif
+
 #ifdef __linux__
 #  include <endian.h>
 #endif
