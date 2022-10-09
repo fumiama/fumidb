@@ -7,6 +7,7 @@
 #include "../include/page.h"
 #include "../include/types.h"
 #include "../include/types/int8.h"
+#include "../include/types/int16.h"
 
 uint8_t buf[10290];
 

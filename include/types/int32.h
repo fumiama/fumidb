@@ -4,11 +4,13 @@
 #include <stdint.h>
 #include "../types.h"
 
-#define INT32_BUCKET_SZ (256)
-#define INT32_INDEX_SZ ((INT32_BUCKET_SZ+1)*(PAGESZ+8))
+#define INT32_BUCKET_SZ (256ull)
+#define INT32_BUCKET_MAX_ITEM_SZ (340ull)
+#define INT32_INDEX_SZ ((INT32_BUCKET_SZ+2)*(PAGESZ+8))
+#define INT32_DIGEST_FACTOR (11454191981ull)
 
-// len(buf) >= INT32_INDEX_SZ = (PAGESZ+8)*(256+1) = 4104*257 = 1054728 (1M)
-// 256个哈希桶, 多出来一个是机动空间, 用于加载溢出桶
+// len(buf) >= INT32_INDEX_SZ = (PAGESZ+8)*(256+2) = 4104*258
+// 256个哈希桶, 多出来2个是机动空间, 用于加载溢出桶
 void* create_int32_index(int fd, void* buf);
 
 void* load_int32_index(int fd, uint64_t ptr, void* buf);

@@ -4,6 +4,10 @@
 #include <stdint.h>
 #include <errno.h>
 
+#ifndef uint8_t
+typedef unsigned char uint8_t;
+#endif
+
 typedef uint8_t type_t;
 typedef uint64_t key_t;
 

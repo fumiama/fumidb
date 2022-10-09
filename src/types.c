@@ -2,6 +2,8 @@
 #include "../include/types.h"
 #include "../include/types/int8.h"
 #include "../include/types/int16.h"
+#include "../include/types/int32.h"
+#include "../include/types/int64.h"
 
 // ptr = init(fd)
 typedef void* (*_type_init_t)(int, void*);
@@ -63,70 +65,70 @@ static uint64_t remove_item_by_not_impl_key(int fd, void* index, key_t k) {
 static _type_init_t _types_init[] = {
     create_int8_index,
     create_int16_index,
-    create_not_impl_index,
-    create_not_impl_index,
-    create_not_impl_index,
-    create_not_impl_index,
+    create_int32_index,
+    create_int64_index,
+    create_int32_index, // float
+    create_int64_index, // double
     create_not_impl_index
 };
 
 static _type_load_t _types_load[] = {
     load_int8_index,
     load_int16_index,
-    load_not_impl_index,
-    load_not_impl_index,
-    load_not_impl_index,
-    load_not_impl_index,
+    load_int32_index,
+    load_int64_index,
+    load_int32_index, // float
+    load_int64_index, // double
     load_not_impl_index
 };
 
 static _type_remove_t _types_remove[] = {
     remove_int8_index,
     remove_int16_index,
-    remove_not_impl_index,
-    remove_not_impl_index,
-    remove_not_impl_index,
-    remove_not_impl_index,
+    remove_int32_index,
+    remove_int64_index,
+    remove_int32_index, // float
+    remove_int64_index, // double
     remove_not_impl_index
 };
 
 static _type_count_t _types_count[] = {
     count_int8_items,
     count_int16_items,
-    count_not_impl_items,
-    count_not_impl_items,
-    count_not_impl_items,
-    count_not_impl_items,
+    count_int32_items,
+    count_int64_items,
+    count_int32_items, // float
+    count_int64_items, // double
     count_not_impl_items
 };
 
 static _insert_item_t _insert_item[] = {
     insert_int8_item,
     insert_int16_item,
-    insert_not_impl_item,
-    insert_not_impl_item,
-    insert_not_impl_item,
-    insert_not_impl_item,
+    insert_int32_item,
+    insert_int64_item,
+    insert_int32_item, // float
+    insert_int64_item, // double
     insert_not_impl_item
 };
 
 static _find_by_key_t _find_item_by_key[] = {
     find_item_by_int8_key,
     find_item_by_int16_key,
-    find_item_by_not_impl_key,
-    find_item_by_not_impl_key,
-    find_item_by_not_impl_key,
-    find_item_by_not_impl_key,
+    find_item_by_int32_key,
+    find_item_by_int64_key,
+    find_item_by_int32_key, // float
+    find_item_by_int64_key, // double
     find_item_by_not_impl_key
 };
 
 static _remove_by_key_t _remove_item_by_key[] = {
     remove_item_by_int8_key,
     remove_item_by_int16_key,
-    remove_item_by_not_impl_key,
-    remove_item_by_not_impl_key,
-    remove_item_by_not_impl_key,
-    remove_item_by_not_impl_key,
+    remove_item_by_int32_key,
+    remove_item_by_int64_key,
+    remove_item_by_int32_key, // float
+    remove_item_by_int64_key, // double
     remove_item_by_not_impl_key
 };
 
